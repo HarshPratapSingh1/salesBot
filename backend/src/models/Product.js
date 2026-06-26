@@ -1,0 +1,38 @@
+import mongoose from 'mongoose';
+
+const pageSchema = new mongoose.Schema({
+  name: String,
+  url: String,
+  description: String,
+  keyFeatures: [String],
+  howToReach: String,
+  screenshot: String
+});
+
+const productSchema = new mongoose.Schema({
+  clientId: { type: mongoose.Schema.Types.ObjectId, ref: 'Client', required: true },
+  name: { type: String, required: true },
+  url: { type: String, required: true },
+  credentials: {
+    email: { type: String, required: true },
+    password: { type: String, required: true }
+  },
+  extraKnowledge: { type: String, default: '' },
+  knowledgeMap: {
+    productSummary: String,
+    loginSteps: {
+      emailSelector: String,
+      passwordSelector: String,
+      submitSelector: String
+    },
+    pages: [pageSchema]
+  },
+  explorationStatus: {
+    type: String,
+    enum: ['pending', 'exploring', 'ready', 'failed'],
+    default: 'pending'
+  },
+  createdAt: { type: Date, default: Date.now }
+});
+
+export default mongoose.model('Product', productSchema);
