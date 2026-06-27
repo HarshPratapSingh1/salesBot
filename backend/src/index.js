@@ -22,14 +22,14 @@ const server = createServer(app);
 
 // Middleware
 app.use(cors());
-app.use(helmet());
+app.use(helmet({
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false
+}));
 app.use(express.json());
 
-// Serve embed script
-app.get('/agent.js', (req, res) => {
-    res.setHeader('Content-Type', 'application/javascript');
-    res.sendFile(join(__dirname, '../public/agent.js'));
-});
+// Serve public folder (agent.js + test.html)
+app.use(express.static(join(__dirname, '../public')));
 
 // Routes
 app.use('/api/auth', authRoutes);
