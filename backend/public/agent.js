@@ -1,27 +1,27 @@
 (function () {
-    // Get product ID from script tag
-    const script = document.currentScript;
-    const productId = script.getAttribute('data-product-id');
-    const serverUrl = script.getAttribute('data-server') || 'http://localhost:5000';
+  // Get product ID from script tag
+  const script = document.currentScript;
+  const productId = script.getAttribute('data-product-id');
+  const serverUrl = script.getAttribute('data-server') || 'http://localhost:5000';
 
-    if (!productId) {
-        console.error('SalesBot: data-product-id is required');
-        return;
-    }
+  if (!productId) {
+    console.error('SalesBot: data-product-id is required');
+    return;
+  }
 
-    // Prevent double injection
-    if (document.getElementById('salesbot-widget')) return;
+  // Prevent double injection
+  if (document.getElementById('salesbot-widget')) return;
 
-    // Create floating button
-    const button = document.createElement('div');
-    button.id = 'salesbot-button';
-    button.innerHTML = `
+  // Create floating button
+  const button = document.createElement('div');
+  button.id = 'salesbot-button';
+  button.innerHTML = `
     <div style="display:flex;align-items:center;gap:8px;">
       <div style="width:10px;height:10px;background:#22c55e;border-radius:50%;animation:salesbot-pulse 2s infinite;"></div>
       <span>Live Demo</span>
     </div>
   `;
-    button.style.cssText = `
+  button.style.cssText = `
     position: fixed;
     bottom: 24px;
     right: 24px;
@@ -39,20 +39,20 @@
     user-select: none;
   `;
 
-    button.onmouseenter = () => {
-        button.style.transform = 'scale(1.05)';
-        button.style.boxShadow = '0 8px 32px rgba(99,102,241,0.5)';
-    };
-    button.onmouseleave = () => {
-        button.style.transform = 'scale(1)';
-        button.style.boxShadow = '0 4px 24px rgba(99,102,241,0.4)';
-    };
+  button.onmouseenter = () => {
+    button.style.transform = 'scale(1.05)';
+    button.style.boxShadow = '0 8px 32px rgba(99,102,241,0.5)';
+  };
+  button.onmouseleave = () => {
+    button.style.transform = 'scale(1)';
+    button.style.boxShadow = '0 4px 24px rgba(99,102,241,0.4)';
+  };
 
-    // Create iframe
-    const iframe = document.createElement('iframe');
-    iframe.id = 'salesbot-widget';
-    iframe.src = `${serverUrl}/widget?pid=${productId}`;
-    iframe.style.cssText = `
+  // Create iframe
+  const iframe = document.createElement('iframe');
+  iframe.id = 'salesbot-widget';
+  iframe.src = `http://localhost:5174/?pid=${productId}`;
+  iframe.style.cssText = `
     display: none;
     position: fixed;
     bottom: 90px;
@@ -68,48 +68,48 @@
     transform: translateY(10px);
   `;
 
-    // Add pulse animation
-    const style = document.createElement('style');
-    style.innerHTML = `
+  // Add pulse animation
+  const style = document.createElement('style');
+  style.innerHTML = `
     @keyframes salesbot-pulse {
       0% { opacity: 1; transform: scale(1); }
       50% { opacity: 0.5; transform: scale(1.2); }
       100% { opacity: 1; transform: scale(1); }
     }
   `;
-    document.head.appendChild(style);
+  document.head.appendChild(style);
 
-    // Toggle widget
-    let isOpen = false;
-    button.onclick = () => {
-        isOpen = !isOpen;
-        if (isOpen) {
-            iframe.style.display = 'block';
-            setTimeout(() => {
-                iframe.style.opacity = '1';
-                iframe.style.transform = 'translateY(0)';
-            }, 10);
-            button.innerHTML = `
+  // Toggle widget
+  let isOpen = false;
+  button.onclick = () => {
+    isOpen = !isOpen;
+    if (isOpen) {
+      iframe.style.display = 'block';
+      setTimeout(() => {
+        iframe.style.opacity = '1';
+        iframe.style.transform = 'translateY(0)';
+      }, 10);
+      button.innerHTML = `
         <div style="display:flex;align-items:center;gap:8px;">
           <span>✕ Close</span>
         </div>
       `;
-        } else {
-            iframe.style.opacity = '0';
-            iframe.style.transform = 'translateY(10px)';
-            setTimeout(() => { iframe.style.display = 'none'; }, 300);
-            button.innerHTML = `
+    } else {
+      iframe.style.opacity = '0';
+      iframe.style.transform = 'translateY(10px)';
+      setTimeout(() => { iframe.style.display = 'none'; }, 300);
+      button.innerHTML = `
         <div style="display:flex;align-items:center;gap:8px;">
           <div style="width:10px;height:10px;background:#22c55e;border-radius:50%;animation:salesbot-pulse 2s infinite;"></div>
           <span>Live Demo</span>
         </div>
       `;
-        }
-    };
+    }
+  };
 
-    // Inject into page
-    document.body.appendChild(button);
-    document.body.appendChild(iframe);
+  // Inject into page
+  document.body.appendChild(button);
+  document.body.appendChild(iframe);
 
-    console.log('SalesBot widget loaded for product:', productId);
+  console.log('SalesBot widget loaded for product:', productId);
 })();
