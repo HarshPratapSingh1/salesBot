@@ -1,4 +1,5 @@
 import { chromium } from 'playwright';
+import { Room, RoomEvent, LocalVideoTrack, VideoSource } from '@livekit/rtc-node';
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -6,6 +7,8 @@ export class Navigator {
     constructor() {
         this.browser = null;
         this.page = null;
+        this.room = null;
+        this.screencastStopper = null;
     }
 
     async launch() {
@@ -13,6 +16,35 @@ export class Navigator {
         this.page = await this.browser.newPage();
         await this.page.setViewportSize({ width: 1280, height: 720 });
         console.log('🌐 Browser launched');
+    }
+
+    async connectToRoom(livekitUrl, token) {
+        try {
+            this.room = new Room();
+            await this.room.connect(livekitUrl, token);
+            console.log('✅ Navigator connected to LiveKit room');
+            await this.startScreenShare();
+        } catch (err) {
+            console.log('❌ LiveKit connection error:', err.message);
+        }
+    }
+
+    async startScreenShare() {
+        try {
+            const stream = await this.page.screencast({
+                width: 1280,
+                height: 720
+            });
+
+            if (!stream) {
+                console.log('⚠️ Screencast not available');
+                return;
+            }
+
+            console.log('📺 Screen sharing started');
+        } catch (err) {
+            console.log('❌ Screen share error:', err.message);
+        }
     }
 
     async login(url, loginSteps, email, password) {
@@ -32,7 +64,6 @@ export class Navigator {
     async executeAction(toolName, toolArgs) {
         try {
             switch (toolName) {
-
                 case 'navigate_to':
                     console.log(`🔗 Navigating to: ${toolArgs.pageName}`);
                     await this.page.goto(toolArgs.url, {
@@ -59,7 +90,6 @@ export class Navigator {
                 case 'highlight_element':
                     console.log(`✨ Highlighting: ${toolArgs.label}`);
                     await this.page.evaluate(({ selector, label }) => {
-                        // Remove any existing highlights
                         document.querySelectorAll('.salesbot-highlight').forEach(el => el.remove());
                         document.querySelectorAll('[data-salesbot-highlighted]').forEach(el => {
                             el.style.outline = '';
@@ -68,12 +98,10 @@ export class Navigator {
 
                         const el = document.querySelector(selector);
                         if (el) {
-                            // Highlight the element
                             el.style.outline = '3px solid #6366f1';
                             el.style.outlineOffset = '4px';
                             el.setAttribute('data-salesbot-highlighted', 'true');
 
-                            // Add floating label
                             const tooltip = document.createElement('div');
                             tooltip.className = 'salesbot-highlight';
                             tooltip.innerText = label;
@@ -96,7 +124,6 @@ export class Navigator {
                             tooltip.style.left = `${rect.left}px`;
                             document.body.appendChild(tooltip);
 
-                            // Remove after 3 seconds
                             setTimeout(() => {
                                 el.style.outline = '';
                                 el.removeAttribute('data-salesbot-highlighted');
@@ -123,7 +150,6 @@ export class Navigator {
 
     async checkIfLoggedOut(baseUrl) {
         const currentUrl = this.page?.url() || '';
-        // If redirected to login page
         if (!currentUrl.includes(baseUrl) ||
             currentUrl.includes('login') ||
             currentUrl.includes('signin')) {
@@ -133,6 +159,10 @@ export class Navigator {
     }
 
     async close() {
+        if (this.room) {
+            await this.room.disconnect();
+            this.room = null;
+        }
         if (this.browser) {
             await this.browser.close();
             this.browser = null;

@@ -6,13 +6,15 @@ import Product from '../models/Product.js';
 import { v4 as uuidv4 } from 'uuid';
 
 const orchestrators = new Map();
+const screenshotIntervals = new Map();
 
 export function initSocket(server) {
     const io = new Server(server, {
         cors: {
             origin: '*',
             methods: ['GET', 'POST']
-        }
+        },
+        maxHttpBufferSize: 5e6 // 5MB for screenshots
     });
 
     io.on('connection', (socket) => {
@@ -23,7 +25,6 @@ export function initSocket(server) {
             try {
                 console.log(`🎬 Starting demo for product: ${productId}`);
 
-                // Check product is ready
                 const product = await Product.findById(productId);
                 if (!product) {
                     socket.emit('demo-error', { message: 'Product not found' });
@@ -48,7 +49,7 @@ export function initSocket(server) {
 
                 // Generate LiveKit tokens
                 const visitorToken = await generateToken(roomName, `visitor-${socket.id}`);
-                const agentToken = await generateToken(roomName, 'agent-alex', true);
+                const agentToken = await generateToken(roomName, 'agent-alex');
 
                 // Send tokens to visitor
                 socket.emit('demo-started', {
@@ -63,6 +64,24 @@ export function initSocket(server) {
                 const orchestrator = new CallOrchestrator(productId, callId, io);
                 orchestrators.set(callId, orchestrator);
                 await orchestrator.start();
+
+                // Start screenshot streaming every 1 second
+                const screenshotInterval = setInterval(async () => {
+                    try {
+                        if (orchestrator.navigator.page) {
+                            const screenshot = await orchestrator.navigator.page.screenshot({
+                                type: 'jpeg',
+                                quality: 60
+                            });
+                            const base64 = screenshot.toString('base64');
+                            io.to(callId).emit('screen-update', { image: base64 });
+                        }
+                    } catch (err) {
+                        // page might be navigating — skip this frame
+                    }
+                }, 1000);
+
+                screenshotIntervals.set(callId, screenshotInterval);
 
             } catch (err) {
                 console.log('❌ Start demo error:', err.message);
@@ -81,11 +100,19 @@ export function initSocket(server) {
         // Visitor ends demo
         socket.on('end-demo', async ({ callId, prospectEmail, prospectName }) => {
             try {
+                // Stop screenshot interval
+                const interval = screenshotIntervals.get(callId);
+                if (interval) {
+                    clearInterval(interval);
+                    screenshotIntervals.delete(callId);
+                }
+
                 const orchestrator = orchestrators.get(callId);
                 if (orchestrator) {
                     await orchestrator.end(prospectEmail, prospectName);
                     orchestrators.delete(callId);
                 }
+
                 socket.emit('demo-ended', { callId });
                 console.log(`🏁 Demo ended: ${callId}`);
             } catch (err) {

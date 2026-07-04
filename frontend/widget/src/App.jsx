@@ -14,27 +14,28 @@ export default function App() {
   const [agentText, setAgentText] = useState('');
   const [isThinking, setIsThinking] = useState(false);
   const [userText, setUserText] = useState('');
+  const [screenImage, setScreenImage] = useState(null);
 
-  // Get product ID from URL
   const params = new URLSearchParams(window.location.search);
   const productId = params.get('pid');
 
   useEffect(() => {
-    // Init socket
     const s = io(SERVER_URL);
     setSocket(s);
 
     s.on('connect', () => {
-      console.log('Socket connected');
+      console.log('✅ Socket connected');
     });
 
     s.on('demo-started', (data) => {
+      console.log('🎬 Demo started:', data);
       setCallData(data);
       setScreen('calling');
     });
 
     s.on('demo-error', (data) => {
       setError(data.message);
+      setScreen('landing');
     });
 
     s.on('agent-speaking', (data) => {
@@ -47,6 +48,11 @@ export default function App() {
 
     s.on('user-transcript', (data) => {
       setUserText(data.text);
+      setTimeout(() => setUserText(''), 5000);
+    });
+
+    s.on('screen-update', (data) => {
+      setScreenImage(data.image);
     });
 
     s.on('demo-ended', () => {
@@ -59,6 +65,7 @@ export default function App() {
   const startDemo = () => {
     if (!socket || !productId) return;
     setError('');
+    setScreenImage(null);
     socket.emit('start-demo', { productId });
     setScreen('loading');
   };
@@ -89,6 +96,7 @@ export default function App() {
         <div className="min-h-screen flex items-center justify-center flex-col gap-4">
           <div className="w-10 h-10 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
           <p className="text-gray-400 text-sm">Starting your demo...</p>
+          <p className="text-gray-600 text-xs">Logging into product...</p>
         </div>
       )}
       {screen === 'calling' && callData && (
@@ -98,6 +106,7 @@ export default function App() {
           agentText={agentText}
           isThinking={isThinking}
           userText={userText}
+          screenImage={screenImage}
           onEnd={() => setScreen('ending')}
         />
       )}

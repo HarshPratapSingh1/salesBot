@@ -3,6 +3,7 @@ import { speak } from '../agent/tts.js';
 import { think } from '../agent/brain/index.js';
 import { Navigator } from '../agent/navigator/index.js';
 import { decrypt } from '../utils/encryption.js';
+import { generateToken } from '../call/room.js';
 import Product from '../models/Product.js';
 import Call from '../models/Call.js';
 import dotenv from 'dotenv';
@@ -26,7 +27,6 @@ export class CallOrchestrator {
 
     async start() {
         try {
-            // Load product from DB
             this.product = await Product.findById(this.productId);
             if (!this.product) throw new Error('Product not found');
             if (this.product.explorationStatus !== 'ready') {
@@ -49,7 +49,7 @@ export class CallOrchestrator {
             this.sttStream = createSTTStream(
                 async (transcript, language) => {
                     if (!this.isActive) return;
-                    if (this.isAgentSpeaking) return; // ignore while agent is speaking
+                    if (this.isAgentSpeaking) return;
                     await this.handleUserSpeech(transcript, language);
                 },
                 (err) => {
@@ -59,9 +59,7 @@ export class CallOrchestrator {
 
             // Opening message
             await this.agentSpeak(
-                `Hi there! I'm Alex, your personal demo guide for ${this.product.name}. 
-         I'm logged in and ready to show you around. 
-         What would you like to see first?`
+                `Hi there! I'm Alex, your personal demo guide for ${this.product.name}. I'm logged in and ready to show you around. What would you like to see first?`
             );
 
             console.log(`✅ Call ${this.callId} started`);
@@ -77,28 +75,21 @@ export class CallOrchestrator {
         try {
             console.log(`👤 User (${language}): ${transcript}`);
 
-            // Update language
             this.currentLanguage = language || this.currentLanguage;
-
-            // Add to transcript log
             this.transcript += `\nUser: ${transcript}`;
 
-            // Add to conversation history
             this.conversationHistory.push({
                 role: 'user',
                 content: transcript
             });
 
-            // Emit to frontend
             this.io.to(this.callId).emit('user-transcript', {
                 text: transcript,
                 language: this.currentLanguage
             });
 
-            // Show thinking indicator
             this.io.to(this.callId).emit('agent-thinking', true);
 
-            // Think
             const decision = await think(
                 transcript,
                 this.currentLanguage,
@@ -109,15 +100,11 @@ export class CallOrchestrator {
 
             this.io.to(this.callId).emit('agent-thinking', false);
 
-            // Execute navigation tools if any
             if (decision.finish_reason === 'tool_calls' && decision.message.tool_calls) {
                 for (const toolCall of decision.message.tool_calls) {
                     const toolName = toolCall.function.name;
                     const toolArgs = JSON.parse(toolCall.function.arguments);
-
                     await this.navigator.executeAction(toolName, toolArgs);
-
-                    // Notify frontend of navigation
                     this.io.to(this.callId).emit('navigation-event', {
                         tool: toolName,
                         args: toolArgs
@@ -125,7 +112,6 @@ export class CallOrchestrator {
                 }
             }
 
-            // Speak the response
             const responseText = decision.message.content;
             if (responseText) {
                 this.transcript += `\nAgent: ${responseText}`;
@@ -136,10 +122,8 @@ export class CallOrchestrator {
                 await this.agentSpeak(responseText);
             }
 
-            // Check for session timeout
             await this.checkSessionTimeout();
 
-            // Manage conversation history length
             if (this.conversationHistory.length > 20) {
                 this.conversationHistory = this.conversationHistory.slice(-16);
             }
@@ -168,7 +152,6 @@ export class CallOrchestrator {
     }
 
     async checkSessionTimeout() {
-        // Re-login if session expired
         const loggedOut = await this.navigator.checkIfLoggedOut(this.product.url);
         if (loggedOut) {
             console.log('⚠️ Session expired — re-logging in');
@@ -180,7 +163,6 @@ export class CallOrchestrator {
             );
         }
 
-        // End call after 30 minutes
         const elapsed = Date.now() - this.startTime;
         if (elapsed > 30 * 60 * 1000) {
             await this.agentSpeak(
@@ -199,7 +181,6 @@ export class CallOrchestrator {
         try {
             this.isActive = false;
 
-            // Save call to DB
             const duration = Math.floor((Date.now() - this.startTime) / 1000);
             await Call.findByIdAndUpdate(this.callId, {
                 transcript: this.transcript,
@@ -210,7 +191,6 @@ export class CallOrchestrator {
                 status: 'completed'
             });
 
-            // Clean up
             if (this.sttStream) {
                 this.sttStream.finish();
             }
