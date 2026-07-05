@@ -48,10 +48,12 @@
     button.style.boxShadow = '0 4px 24px rgba(99,102,241,0.4)';
   };
 
-  // Create iframe
+  // Create iframe with microphone permission
   const iframe = document.createElement('iframe');
   iframe.id = 'salesbot-widget';
   iframe.src = `http://localhost:5174/?pid=${productId}`;
+  iframe.allow = 'microphone; camera; autoplay; display-capture';
+  iframe.setAttribute('allowtransparency', 'true');
   iframe.style.cssText = `
     display: none;
     position: fixed;

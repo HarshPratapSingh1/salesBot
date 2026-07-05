@@ -1,52 +1,88 @@
-import { DeepgramClient } from '@deepgram/sdk';
+import pkg from '@deepgram/sdk';
+const { Deepgram } = pkg;
 import dotenv from 'dotenv';
 dotenv.config();
 
-const deepgram = new DeepgramClient(process.env.DEEPGRAM_API_KEY);
-
-export function createSTTStream(onTranscript, onError) {
+export async function createSTTStream(onTranscript, onError) {
     try {
-        const connection = deepgram.listen.live({
+        const deepgram = new Deepgram(process.env.DEEPGRAM_API_KEY);
+
+        const connection = deepgram.transcription.live({
             model: 'nova-2',
-            language: 'multi',
-            detect_language: true,
+            language: 'en-US',
             punctuate: true,
             interim_results: false,
             endpointing: 800
         });
 
-        connection.on('open', () => {
-            console.log('🎤 STT stream opened');
+        let keepAliveInterval = null;
+
+        connection.addListener('open', () => {
+            console.log('🎤 STT stream opened (Deepgram)');
+
+            // Send keepalive every 5 seconds to prevent timeout
+            keepAliveInterval = setInterval(() => {
+                try {
+                    if (connection.getReadyState() === 1) {
+                        connection.keepAlive();
+                    }
+                } catch (err) {
+                    // ignore
+                }
+            }, 5000);
         });
 
-        connection.on('transcript', (data) => {
-            const transcript = data.channel?.alternatives?.[0]?.transcript;
-            const language = data.channel?.detected_language || 'en';
-            const confidence = data.channel?.alternatives?.[0]?.confidence || 0;
+        connection.addListener('transcriptReceived', (message) => {
+            try {
+                const data = JSON.parse(message);
+                const transcript = data.channel?.alternatives?.[0]?.transcript;
+                const confidence = data.channel?.alternatives?.[0]?.confidence || 0;
 
-            if (transcript && transcript.trim() && confidence > 0.5) {
-                console.log(`🗣️ Heard (${language}): ${transcript}`);
-                onTranscript(transcript.trim(), language);
+                if (transcript && transcript.trim() && confidence > 0.5) {
+                    console.log(`🗣️ Heard: ${transcript}`);
+                    onTranscript(transcript.trim(), 'en');
+                }
+            } catch (err) {
+                // skip
             }
         });
 
-        connection.on('error', (err) => {
-            console.log('❌ STT error:', err);
+        connection.addListener('error', (err) => {
+            console.log('❌ STT error:', err.message || err);
             if (onError) onError(err);
         });
 
-        connection.on('close', () => {
+        connection.addListener('close', () => {
             console.log('🎤 STT stream closed');
+            if (keepAliveInterval) {
+                clearInterval(keepAliveInterval);
+            }
         });
 
-        return connection;
+        return {
+            send: (chunk) => {
+                try {
+                    if (connection.getReadyState() === 1) {
+                        connection.send(chunk);
+                    }
+                } catch (err) {
+                    console.log('⚠️ STT send error:', err.message);
+                }
+            },
+            finish: () => {
+                if (keepAliveInterval) {
+                    clearInterval(keepAliveInterval);
+                }
+                try {
+                    connection.finish();
+                } catch (err) {
+                    // ignore
+                }
+            }
+        };
 
     } catch (err) {
         console.log('❌ STT setup error:', err.message);
-        // Return dummy object so orchestrator doesn't crash
-        return {
-            send: () => { },
-            finish: () => { }
-        };
+        return { send: () => { }, finish: () => { } };
     }
 }

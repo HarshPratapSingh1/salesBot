@@ -45,8 +45,8 @@ export class CallOrchestrator {
                 decrypt(this.product.credentials.password)
             );
 
-            // Start STT stream
-            this.sttStream = createSTTStream(
+            // Start STT stream (now async)
+            this.sttStream = await createSTTStream(
                 async (transcript, language) => {
                     if (!this.isActive) return;
                     if (this.isAgentSpeaking) return;

@@ -22,6 +22,14 @@ const server = createServer(app);
 
 // Middleware
 app.use(cors());
+
+// Allow microphone in iframes
+app.use((req, res, next) => {
+    res.setHeader('Permissions-Policy', 'microphone=*, camera=*');
+    res.setHeader('Cross-Origin-Embedder-Policy', 'unsafe-none');
+    res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
+    next();
+});
 app.use(helmet({
     contentSecurityPolicy: false,
     crossOriginEmbedderPolicy: false

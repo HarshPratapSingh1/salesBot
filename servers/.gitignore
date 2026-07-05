@@ -1,0 +1,20 @@
+# Node
+node_modules/
+.env
+.env.local
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+servers/tts_models/
+servers/__pycache__/
+
+# Build
+dist/
+build/
+.next/
+
+# OS
+.DS_Store
+Thumbs.db
