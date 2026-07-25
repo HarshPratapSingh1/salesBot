@@ -1,11 +1,13 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-export async function speak(text) {
+const TTS_BASE_URL = process.env.TTS_BASE_URL || 'http://localhost:8000';
+
+export async function speak(text, signal) {
     try {
         console.log(`🔊 Speaking: ${text.substring(0, 50)}...`);
 
-        const response = await fetch('http://localhost:8000/v1/audio/speech', {
+        const response = await fetch(`${TTS_BASE_URL}/v1/audio/speech`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -13,8 +15,9 @@ export async function speak(text) {
                 input: text,
                 voice: 'en_US-lessac-medium',
                 speed: 1.0,
-                response_format: 'wav'
-            })
+                response_format: 'mp3'
+            }),
+            signal
         });
 
         if (!response.ok) {

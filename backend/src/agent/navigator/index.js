@@ -148,6 +148,27 @@ export class Navigator {
         return this.page?.url() || '';
     }
 
+    /**
+     * Get a snapshot of the current page state so the LLM knows where it is
+     * before deciding on the next action. Keeps this lightweight — just the
+     * URL, title, and a short slice of visible text — to avoid bloating the
+     * prompt on every turn.
+     */
+    async getPageContext() {
+        try {
+            if (!this.page) return null;
+            const url = this.page.url();
+            const title = await this.page.title();
+            const visibleText = await this.page.evaluate(() => {
+                return document.body?.innerText?.slice(0, 1000) || '';
+            });
+            return { url, title, visibleText };
+        } catch (err) {
+            console.log('⚠️ getPageContext failed:', err.message);
+            return null;
+        }
+    }
+
     async checkIfLoggedOut(baseUrl) {
         const currentUrl = this.page?.url() || '';
         if (!currentUrl.includes(baseUrl) ||

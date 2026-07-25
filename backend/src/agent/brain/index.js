@@ -85,10 +85,19 @@ export const navigationTools = [
     }
 ];
 
-export async function think(transcript, language, knowledgeMap, conversationHistory, productName) {
+export async function think(transcript, language, knowledgeMap, conversationHistory, productName, pageContext) {
     const lang = language || 'en';
     const langName = languageNames[lang] || 'English';
     const persona = culturalPersona[lang] || culturalPersona.en;
+
+    const pageContextBlock = pageContext
+        ? `
+CURRENT PAGE STATE:
+- URL: ${pageContext.url}
+- Title: ${pageContext.title}
+- Visible text (truncated): ${pageContext.visibleText}
+`
+        : '';
 
     const systemPrompt = `
 You are Alex, an expert AI sales demo specialist for ${productName}.
@@ -98,7 +107,7 @@ COMMUNICATION STYLE: ${persona}
 
 PRODUCT KNOWLEDGE:
 ${JSON.stringify(knowledgeMap, null, 2)}
-
+${pageContextBlock}
 YOUR ROLE:
 - Give an engaging, personalized live demo of this product
 - Navigate to features proactively — always SHOW before you explain
