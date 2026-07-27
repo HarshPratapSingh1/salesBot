@@ -1218,6 +1218,28 @@ body::before {
     box-shadow: 0 4px 16px rgba(124, 58, 237, 0.3);
 }
 
+.submit-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.leadgate-step {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--accent-mid);
+    margin-bottom: 6px;
+}
+
+.leadgate-error {
+    font-size: 0.72rem;
+    color: #f87171;
+    margin-top: 6px;
+}
+
 .skip-btn {
     width: 100%;
     padding: 10px 24px;

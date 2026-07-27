@@ -2,9 +2,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 const navItems = [
     { path: '/', icon: '🤖', label: 'Bots' },
-    { path: '/analytics', icon: '📊', label: 'Analytics' },
     { path: '/products', icon: '⚙', label: 'Products' },
-    { path: '/calls', icon: '📞', label: 'Sessions' },
 ];
 
 export default function Sidebar() {

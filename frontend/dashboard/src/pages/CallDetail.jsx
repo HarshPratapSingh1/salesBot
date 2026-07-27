@@ -99,8 +99,8 @@ export default function CallDetail() {
                 <div className="flex items-center justify-between mb-8">
                     <div>
                         <div className="flex items-center gap-3 mb-1">
-                            <Link to="/calls" className="text-gray-500 hover:text-white text-sm transition-colors">
-                                Sessions
+                            <Link to={`/bots/salesbot/${call.productId?._id}`} className="text-gray-500 hover:text-white text-sm transition-colors">
+                                {call.productId?.name || 'Bot Dashboard'}
                             </Link>
                             <span className="text-gray-600">→</span>
                             <span className="text-white text-sm">
@@ -142,8 +142,8 @@ export default function CallDetail() {
                                 </div>
                             </div>
                             <div className={`text-center py-2 rounded-lg text-sm font-medium ${call.qualified
-                                    ? 'bg-green-950 text-green-400'
-                                    : 'bg-gray-800 text-gray-400'
+                                ? 'bg-green-950 text-green-400'
+                                : 'bg-gray-800 text-gray-400'
                                 }`}>
                                 {call.qualified ? '✅ Qualified Lead' : 'Not Qualified'}
                             </div>
@@ -197,8 +197,8 @@ export default function CallDetail() {
                                     >
                                         {/* Avatar */}
                                         <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm flex-shrink-0 ${msg.role === 'agent'
-                                                ? 'bg-indigo-600'
-                                                : 'bg-gray-700'
+                                            ? 'bg-indigo-600'
+                                            : 'bg-gray-700'
                                             }`}>
                                             {msg.role === 'agent' ? '🤖' : '👤'}
                                         </div>
@@ -206,8 +206,8 @@ export default function CallDetail() {
                                         {/* Message */}
                                         <div className={`max-w-lg ${msg.role === 'user' ? 'items-end' : 'items-start'} flex flex-col`}>
                                             <div className={`px-4 py-3 rounded-2xl text-sm leading-relaxed ${msg.role === 'agent'
-                                                    ? 'bg-[#0f0f0f] text-gray-200 rounded-tl-sm'
-                                                    : 'bg-indigo-600 text-white rounded-tr-sm'
+                                                ? 'bg-[#0f0f0f] text-gray-200 rounded-tl-sm'
+                                                : 'bg-indigo-600 text-white rounded-tr-sm'
                                                 }`}>
                                                 {msg.content}
                                             </div>

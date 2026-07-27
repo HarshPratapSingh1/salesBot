@@ -25,7 +25,7 @@ export function initSocket(server) {
         console.log(`🔌 Socket connected: ${socket.id}`);
 
         // Visitor starts a demo
-        socket.on('start-demo', async ({ productId }) => {
+        socket.on('start-demo', async ({ productId, prospectName, prospectEmail }) => {
             try {
                 console.log(`🎬 Starting demo for product: ${productId}`);
 
@@ -39,13 +39,14 @@ export function initSocket(server) {
                     return;
                 }
 
-                // Create call record
                 const roomName = `demo-${productId}-${uuidv4()}`;
                 const call = await Call.create({
                     productId,
                     clientId: product.clientId,
                     roomUrl: roomName,
-                    status: 'active'
+                    status: 'active',
+                    prospectName: prospectName || '',
+                    prospectEmail: prospectEmail || ''
                 });
 
                 const callId = call._id.toString();

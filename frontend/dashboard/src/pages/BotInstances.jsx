@@ -6,6 +6,7 @@ import api from '../api';
 const BOT_INFO = {
     salesbot: {
         name: 'SalesBot',
+        personaName: 'Alex',
         icon: '⚡',
         description: 'AI voice agent that gives live, personalized product demos to your website visitors.',
     },
@@ -75,9 +76,14 @@ export default function BotInstances() {
                         ← Bots
                     </Link>
                     <div className="flex items-center gap-3">
-                        <span className="text-2xl">{bot.icon}</span>
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-600 to-indigo-800 flex items-center justify-center text-base font-bold text-white">
+                            {bot.personaName.charAt(0)}
+                        </div>
                         <h1 className="text-2xl font-bold text-white">{bot.name}</h1>
                     </div>
+                    <p className="text-indigo-400 text-xs font-medium mt-1 ml-[52px]">
+                        Persona: {bot.personaName}
+                    </p>
                     <p className="text-gray-500 mt-1">{bot.description}</p>
                 </div>
 

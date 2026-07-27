@@ -7,9 +7,7 @@ import BotDashboard from './pages/BotDashboard';
 import Products from './pages/Products';
 import NewProduct from './pages/NewProduct';
 import ProductDetail from './pages/ProductDetail';
-import Calls from './pages/Calls';
 import CallDetail from './pages/CallDetail';
-import Analytics from './pages/Analytics';
 import Embed from './pages/Embed';
 
 const PrivateRoute = ({ children }) => {
@@ -26,11 +24,9 @@ export default function App() {
         <Route path="/" element={<PrivateRoute><Bots /></PrivateRoute>} />
         <Route path="/bots/:botType" element={<PrivateRoute><BotInstances /></PrivateRoute>} />
         <Route path="/bots/:botType/:productId" element={<PrivateRoute><BotDashboard /></PrivateRoute>} />
-        <Route path="/analytics" element={<PrivateRoute><Analytics /></PrivateRoute>} />
         <Route path="/products" element={<PrivateRoute><Products /></PrivateRoute>} />
         <Route path="/products/new" element={<PrivateRoute><NewProduct /></PrivateRoute>} />
         <Route path="/products/:id" element={<PrivateRoute><ProductDetail /></PrivateRoute>} />
-        <Route path="/calls" element={<PrivateRoute><Calls /></PrivateRoute>} />
         <Route path="/calls/:id" element={<PrivateRoute><CallDetail /></PrivateRoute>} />
         <Route path="/embed/:id" element={<PrivateRoute><Embed /></PrivateRoute>} />
       </Routes>

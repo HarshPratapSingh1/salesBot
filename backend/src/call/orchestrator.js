@@ -33,6 +33,22 @@ export class CallOrchestrator {
         this.wasInterrupted = false; // Whether the current turn is from an interruption
     }
 
+    /**
+     * Persist a single turn to the Call document's messages[] array immediately.
+     * Incremental (not just at end()) so a transcript survives even if the
+     * call disconnects or crashes before end() runs.
+     */
+    async recordMessage(role, content) {
+        if (!content) return;
+        try {
+            await Call.findByIdAndUpdate(this.callId, {
+                $push: { messages: { role, content, timestamp: new Date() } }
+            });
+        } catch (err) {
+            console.log('⚠️ Failed to persist message:', err.message);
+        }
+    }
+
     async start() {
         try {
             this.product = await Product.findById(this.productId);
@@ -54,9 +70,10 @@ export class CallOrchestrator {
             );
 
             // Opening message
-            await this.agentSpeak(
-                `Hey there! I'm Alex. Welcome! I'll be walking you through ${this.product.name} today. Feel free to ask me anything or just tell me what you'd like to see — I'm here to help!`
-            );
+            const openingText = `Hey there! I'm Alex. Welcome! I'll be walking you through ${this.product.name} today. Feel free to ask me anything or just tell me what you'd like to see — I'm here to help!`;
+            this.transcript += `\nAgent: ${openingText}`;
+            await this.agentSpeak(openingText);
+            await this.recordMessage('agent', openingText);
 
             console.log(`✅ Call ${this.callId} started`);
 
@@ -146,6 +163,7 @@ export class CallOrchestrator {
                 role: 'user',
                 content: transcript
             });
+            await this.recordMessage('user', transcript);
 
             // If this was an interruption, inject context so the LLM addresses it then resumes
             if (this.wasInterrupted && this.lastAgentMessage) {
@@ -163,7 +181,7 @@ export class CallOrchestrator {
             });
 
             // Reset repetition tracker on new user input
-            this.lastActionKey = null;
+            // this.lastActionKey = null;
 
             let stepCount = 0;
             const maxSteps = 5;
@@ -196,8 +214,32 @@ export class CallOrchestrator {
                 // This makes the experience feel natural: the agent says what
                 // it's about to do ("Let me show you the products"), THEN the
                 // browser navigates/clicks. Like a real human demo.
+                //
+                // NOTE: function-calling models (including Llama 3.3 via Groq)
+                // almost never return spoken text AND a tool call in the same
+                // response — content is typically null whenever tool_calls is
+                // present. Without a fallback here the agent goes completely
+                // silent on every turn that triggers navigation. So: if there's
+                // no text but there IS a tool call, synthesize a short natural
+                // line instead of saying nothing.
+                let responseText = decision.message.content;
+                const hasToolCalls = decision.finish_reason === 'tool_calls' && decision.message.tool_calls?.length > 0;
 
-                const responseText = decision.message.content;
+                if (!responseText && hasToolCalls) {
+                    try {
+                        const firstCall = decision.message.tool_calls[0];
+                        const peekArgs = JSON.parse(firstCall.function.arguments);
+                        const peekKey = `${firstCall.function.name}:${JSON.stringify(peekArgs)}`;
+                        const label = peekArgs.pageName || peekArgs.description || peekArgs.label;
+
+                        responseText = (peekKey === this.lastActionKey)
+                            ? "We're already here — what else would you like to see?"
+                            : (label ? `Let's take a look at ${label}.` : "Let me show you.");
+                    } catch {
+                        responseText = "Let me show you.";
+                    }
+                }
+
                 if (responseText) {
                     this.transcript += `\nAgent: ${responseText}`;
                     this.conversationHistory.push({
@@ -205,6 +247,7 @@ export class CallOrchestrator {
                         content: responseText
                     });
                     await this.agentSpeak(responseText, interruptId);
+                    await this.recordMessage('agent', responseText);
                 }
 
                 // Now execute the browser action after speaking
@@ -345,9 +388,10 @@ export class CallOrchestrator {
 
         const elapsed = Date.now() - this.startTime;
         if (elapsed > 30 * 60 * 1000) {
-            await this.agentSpeak(
-                "We've covered a lot today! I'd love to have someone from our team follow up with you. Can I get your email address?"
-            );
+            const followupText = "We've covered a lot today! I'd love to have someone from our team follow up with you. Can I get your email address?";
+            this.transcript += `\nAgent: ${followupText}`;
+            await this.agentSpeak(followupText);
+            await this.recordMessage('agent', followupText);
         }
     }
 
@@ -356,14 +400,17 @@ export class CallOrchestrator {
             this.isActive = false;
 
             const duration = Math.floor((Date.now() - this.startTime) / 1000);
-            await Call.findByIdAndUpdate(this.callId, {
+
+            const update = {
                 transcript: this.transcript,
                 language: this.currentLanguage,
                 duration,
-                prospectEmail,
-                prospectName,
                 status: 'completed'
-            });
+            };
+            if (prospectEmail) update.prospectEmail = prospectEmail;
+            if (prospectName) update.prospectName = prospectName;
+
+            await Call.findByIdAndUpdate(this.callId, update);
 
             await this.navigator.close();
 

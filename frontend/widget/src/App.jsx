@@ -10,11 +10,14 @@ export default function App() {
     const [callData, setCallData] = useState(null);
     const [error, setError] = useState('');
     const [screenImage, setScreenImage] = useState(null);
-    const [endForm, setEndForm] = useState({ name: '', email: '' });
-    const [submitted, setSubmitted] = useState(false);
+    const [leadForm, setLeadForm] = useState({ name: '', email: '' });
+    const [leadFormTouched, setLeadFormTouched] = useState(false);
 
     const params = new URLSearchParams(window.location.search);
     const productId = params.get('pid');
+
+    const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    const isLeadFormValid = leadForm.name.trim().length > 0 && isValidEmail(leadForm.email);
 
     useEffect(() => {
         const s = io(SERVER_URL);
@@ -47,22 +50,23 @@ export default function App() {
         if (!socket || !productId) return;
         setError('');
         setScreenImage(null);
-        socket.emit('start-demo', { productId });
+        socket.emit('start-demo', {
+            productId,
+            prospectName: leadForm.name,
+            prospectEmail: leadForm.email,
+        });
         setScreen('loading');
     };
 
-    const endDemo = (email, name) => {
-        if (!socket || !callData) return;
-        socket.emit('end-demo', {
-            callId: callData.callId,
-            prospectEmail: email,
-            prospectName: name,
-        });
+    const handleLeadFormContinue = () => {
+        setLeadFormTouched(true);
+        if (!isLeadFormValid) return;
+        startDemo();
     };
 
-    const handleEndSubmit = () => {
-        endDemo(endForm.email, endForm.name);
-        setSubmitted(true);
+    const endDemo = () => {
+        if (!socket || !callData) return;
+        socket.emit('end-demo', { callId: callData.callId });
     };
 
     if (!productId) {
@@ -101,7 +105,7 @@ export default function App() {
 
                     {error && <div className="landing-error">{error}</div>}
 
-                    <button className="start-btn" onClick={startDemo}>
+                    <button className="start-btn" onClick={() => setScreen('lead-form')}>
                         <span>🚀</span>
                         <span>Start Live Demo</span>
                     </button>
@@ -109,6 +113,62 @@ export default function App() {
                     <p className="landing-footer">
                         Takes about 2-5 minutes • No signup required
                     </p>
+                </div>
+            </div>
+        );
+    }
+
+    // ── Pre-Demo Lead Gate ──
+    // Visitor must provide name + email before the demo will start.
+    if (screen === 'lead-form') {
+        return (
+            <div className="endcall-screen">
+                <div className="endcall-card">
+                    <div className="endcall-header">
+                        <div className="endcall-icon">👋</div>
+                        <p className="leadgate-step">Step 1 of 2</p>
+                        <h2>Before we get started</h2>
+                        <p className="endcall-subtitle">
+                            Just need a couple details so Alex knows who they're talking to.
+                        </p>
+                    </div>
+
+                    <div className="endcall-form">
+                        <div className="form-group">
+                            <label>Your Name *</label>
+                            <input
+                                type="text"
+                                placeholder="John Smith"
+                                value={leadForm.name}
+                                onChange={e => setLeadForm({ ...leadForm, name: e.target.value })}
+                            />
+                            {leadFormTouched && leadForm.name.trim().length === 0 && (
+                                <p className="leadgate-error">Name is required</p>
+                            )}
+                        </div>
+                        <div className="form-group">
+                            <label>Your Email *</label>
+                            <input
+                                type="email"
+                                placeholder="you@company.com"
+                                value={leadForm.email}
+                                onChange={e => setLeadForm({ ...leadForm, email: e.target.value })}
+                            />
+                            {leadFormTouched && !isValidEmail(leadForm.email) && (
+                                <p className="leadgate-error">A valid email is required</p>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="endcall-actions">
+                        <button
+                            className="submit-btn"
+                            onClick={handleLeadFormContinue}
+                            disabled={leadFormTouched && !isLeadFormValid}
+                        >
+                            Continue to Demo →
+                        </button>
+                    </div>
                 </div>
             </div>
         );
@@ -132,65 +192,8 @@ export default function App() {
                 callData={callData}
                 socket={socket}
                 screenImage={screenImage}
-                onEnd={() => setScreen('ending')}
+                onEnd={endDemo}
             />
-        );
-    }
-
-    // ── End Call Form ──
-    if (screen === 'ending') {
-        if (submitted) {
-            return (
-                <div className="thankyou-screen">
-                    <div className="thankyou-icon">🎉</div>
-                    <h2>Thanks for joining!</h2>
-                    <p>Our team will be in touch soon.</p>
-                </div>
-            );
-        }
-
-        return (
-            <div className="endcall-screen">
-                <div className="endcall-card">
-                    <div className="endcall-header">
-                        <div className="endcall-icon">👋</div>
-                        <h2>Great talking with you!</h2>
-                        <p className="endcall-subtitle">
-                            Leave your details and our team will follow up with a personalized offer.
-                        </p>
-                    </div>
-
-                    <div className="endcall-form">
-                        <div className="form-group">
-                            <label>Your Name</label>
-                            <input
-                                type="text"
-                                placeholder="John Smith"
-                                value={endForm.name}
-                                onChange={e => setEndForm({ ...endForm, name: e.target.value })}
-                            />
-                        </div>
-                        <div className="form-group">
-                            <label>Your Email</label>
-                            <input
-                                type="email"
-                                placeholder="you@company.com"
-                                value={endForm.email}
-                                onChange={e => setEndForm({ ...endForm, email: e.target.value })}
-                            />
-                        </div>
-                    </div>
-
-                    <div className="endcall-actions">
-                        <button className="submit-btn" onClick={handleEndSubmit}>
-                            Submit & Get Follow Up
-                        </button>
-                        <button className="skip-btn" onClick={() => endDemo('', '')}>
-                            Skip
-                        </button>
-                    </div>
-                </div>
-            </div>
         );
     }
 
@@ -199,8 +202,8 @@ export default function App() {
         return (
             <div className="thankyou-screen">
                 <div className="thankyou-icon">🎉</div>
-                <h2>Thanks for the demo!</h2>
-                <p>Our team will be in touch soon.</p>
+                <h2>Thanks for the demo, {leadForm.name || 'friend'}!</h2>
+                <p>Our team will be in touch soon at {leadForm.email}.</p>
             </div>
         );
     }

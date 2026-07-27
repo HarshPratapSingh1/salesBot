@@ -8,6 +8,7 @@ const BOT_TYPES = [
     {
         id: 'salesbot',
         name: 'SalesBot',
+        personaName: 'Alex',
         icon: '⚡',
         description: 'AI voice agent that gives live, personalized product demos to your website visitors.',
         color: 'from-indigo-600 to-indigo-800',
@@ -54,12 +55,15 @@ export default function Bots() {
                             onClick={() => navigate(`/bots/${bot.id}`)}
                             className="text-left bg-[#1a1a1a] border border-[#2a2a2a] hover:border-indigo-500 rounded-xl p-6 transition-colors group"
                         >
-                            <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${bot.color} flex items-center justify-center text-2xl mb-4`}>
-                                {bot.icon}
+                            <div className={`w-14 h-14 rounded-full bg-gradient-to-br ${bot.color} flex items-center justify-center text-xl font-bold text-white mb-4`}>
+                                {bot.personaName.charAt(0)}
                             </div>
                             <h2 className="text-lg font-semibold text-white group-hover:text-indigo-300 transition-colors">
                                 {bot.name}
                             </h2>
+                            <p className="text-indigo-400 text-xs font-medium mt-0.5">
+                                Persona: {bot.personaName}
+                            </p>
                             <p className="text-gray-500 text-sm mt-2 leading-relaxed">
                                 {bot.description}
                             </p>
