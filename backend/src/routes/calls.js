@@ -41,6 +41,7 @@ router.get('/analytics', protect, async (req, res) => {
 
         const totalCalls = calls.length;
         const completedCalls = calls.filter(c => c.status === 'completed');
+        const incompleteCalls = calls.filter(c => c.status !== 'completed');
         const qualifiedCalls = calls.filter(c => c.qualified);
         const avgDuration = completedCalls.length > 0
             ? Math.floor(completedCalls.reduce((sum, c) => sum + c.duration, 0) / completedCalls.length)
@@ -48,6 +49,13 @@ router.get('/analytics', protect, async (req, res) => {
         const conversionRate = totalCalls > 0
             ? Math.round((qualifiedCalls.length / totalCalls) * 100)
             : 0;
+
+        // Visitor satisfaction breakdown (sensed from the transcript at call end)
+        const satisfactionMap = { positive: 0, neutral: 0, negative: 0, unknown: 0 };
+        calls.forEach(c => {
+            const label = c.satisfaction || 'unknown';
+            satisfactionMap[label] = (satisfactionMap[label] || 0) + 1;
+        });
 
         // Calls per day last 7 days
         const last7Days = [];
@@ -77,11 +85,13 @@ router.get('/analytics', protect, async (req, res) => {
         res.json({
             totalCalls,
             completedCalls: completedCalls.length,
+            incompleteCalls: incompleteCalls.length,
             qualifiedLeads: qualifiedCalls.length,
             avgDuration,
             conversionRate,
             callsPerDay: last7Days,
-            languages
+            languages,
+            satisfaction: satisfactionMap
         });
     } catch (err) {
         res.status(500).json({ message: 'Server error', error: err.message });
@@ -128,7 +138,7 @@ router.get('/export', protect, async (req, res) => {
     }
 });
 
-// Get all leads
+// Get single call with transcript
 router.get('/leads/all', protect, async (req, res) => {
     try {
         const { productId } = req.query;

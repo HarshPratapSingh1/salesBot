@@ -6,4 +6,8 @@ export default defineConfig({
   plugins: [
     react(),
   ],
+  server: {
+    port: 5174,
+    strictPort: true, // must match the port hardcoded in agent.js's iframe src
+  },
 })

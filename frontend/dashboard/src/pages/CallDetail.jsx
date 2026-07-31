@@ -159,6 +159,13 @@ export default function CallDetail() {
                                     { label: 'Language', value: (call.language || 'en').toUpperCase() },
                                     { label: 'Messages', value: `${call.messages?.length || 0} total` },
                                     { label: 'Status', value: call.status },
+                                    {
+                                        label: 'Satisfaction',
+                                        value: call.satisfaction === 'positive' ? '🙂 Positive'
+                                            : call.satisfaction === 'negative' ? '🙁 Negative'
+                                                : call.satisfaction === 'neutral' ? '😐 Neutral'
+                                                    : '❔ Unclear'
+                                    },
                                 ].map(item => (
                                     <div key={item.label} className="flex justify-between items-center">
                                         <span className="text-gray-500 text-sm">{item.label}</span>
@@ -166,6 +173,11 @@ export default function CallDetail() {
                                     </div>
                                 ))}
                             </div>
+                            {call.satisfactionReason && (
+                                <p className="text-gray-600 text-xs mt-4 pt-4 border-t border-[#2a2a2a] leading-relaxed">
+                                    {call.satisfactionReason}
+                                </p>
+                            )}
                         </div>
                     </div>
 

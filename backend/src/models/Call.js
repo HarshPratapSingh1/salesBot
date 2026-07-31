@@ -14,9 +14,22 @@ const callSchema = new mongoose.Schema({
   transcript: { type: String, default: '' },
   language: { type: String, default: 'en' },
   duration: { type: Number, default: 0 },
+
+  // Lead qualification
   qualified: { type: Boolean, default: false },
+  qualificationReason: { type: String, default: '' },
+
+  // Visitor satisfaction (inferred from transcript at call end)
+  satisfaction: {
+    type: String,
+    enum: ['positive', 'neutral', 'negative', 'unknown'],
+    default: 'unknown'
+  },
+  satisfactionReason: { type: String, default: '' },
+
   prospectEmail: { type: String, default: '' },
   prospectName: { type: String, default: '' },
+
   status: {
     type: String,
     enum: ['active', 'completed', 'failed'],

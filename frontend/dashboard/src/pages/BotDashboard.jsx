@@ -126,6 +126,7 @@ export default function BotDashboard() {
     const statCards = [
         { label: 'Total Sessions', value: analytics?.totalCalls || 0, icon: '📞', color: 'text-indigo-400', bg: 'bg-indigo-950' },
         { label: 'Completed', value: analytics?.completedCalls || 0, icon: '✅', color: 'text-green-400', bg: 'bg-green-950' },
+        { label: 'Incomplete', value: analytics?.incompleteCalls || 0, icon: '⚠️', color: 'text-orange-400', bg: 'bg-orange-950' },
         { label: 'Qualified Leads', value: analytics?.qualifiedLeads || 0, icon: '🎯', color: 'text-purple-400', bg: 'bg-purple-950' },
         { label: 'Conversion Rate', value: `${analytics?.conversionRate || 0}%`, icon: '📈', color: 'text-amber-400', bg: 'bg-amber-950' },
         { label: 'Avg Duration', value: formatDuration(analytics?.avgDuration || 0), icon: '⏱', color: 'text-blue-400', bg: 'bg-blue-950' },
@@ -182,7 +183,7 @@ export default function BotDashboard() {
                 </div>
 
                 {/* Stat Cards */}
-                <div className="grid grid-cols-5 gap-4 mb-8">
+                <div className="grid grid-cols-6 gap-4 mb-8">
                     {statCards.map((stat) => (
                         <div key={stat.label} className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-5">
                             <div className={`w-10 h-10 ${stat.bg} rounded-lg flex items-center justify-center text-xl mb-3`}>
@@ -194,7 +195,7 @@ export default function BotDashboard() {
                     ))}
                 </div>
 
-                <div className="grid grid-cols-3 gap-6 mb-6">
+                <div className="grid grid-cols-4 gap-6 mb-6">
                     {/* Calls per day chart */}
                     <div className="col-span-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-6">
                         <h2 className="text-white font-semibold mb-6">Sessions — Last 7 Days</h2>
@@ -243,6 +244,42 @@ export default function BotDashboard() {
                                                         width: `${pct}%`,
                                                         backgroundColor: COLORS[i % COLORS.length]
                                                     }}
+                                                />
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Visitor satisfaction breakdown — sensed from transcript at call end */}
+                    <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-6">
+                        <h2 className="text-white font-semibold mb-6">Visitor Satisfaction</h2>
+                        {!analytics?.satisfaction || analytics.totalCalls === 0 ? (
+                            <p className="text-gray-600 text-sm">No data yet</p>
+                        ) : (
+                            <div className="space-y-3">
+                                {[
+                                    { key: 'positive', label: '🙂 Positive', color: '#22c55e' },
+                                    { key: 'neutral', label: '😐 Neutral', color: '#6366f1' },
+                                    { key: 'negative', label: '🙁 Negative', color: '#ef4444' },
+                                    { key: 'unknown', label: '❔ Unclear', color: '#6b7280' },
+                                ].map(({ key, label, color }) => {
+                                    const count = analytics.satisfaction[key] || 0;
+                                    const pct = analytics.totalCalls > 0
+                                        ? Math.round((count / analytics.totalCalls) * 100)
+                                        : 0;
+                                    return (
+                                        <div key={key}>
+                                            <div className="flex justify-between items-center mb-1">
+                                                <span className="text-gray-300 text-sm font-medium">{label}</span>
+                                                <span className="text-gray-500 text-xs">{count} ({pct}%)</span>
+                                            </div>
+                                            <div className="w-full bg-[#2a2a2a] rounded-full h-1.5">
+                                                <div
+                                                    className="h-1.5 rounded-full transition-all"
+                                                    style={{ width: `${pct}%`, backgroundColor: color }}
                                                 />
                                             </div>
                                         </div>
@@ -343,6 +380,11 @@ export default function BotDashboard() {
                                                     ✅ Qualified
                                                 </span>
                                             )}
+                                            {call.satisfaction && call.satisfaction !== 'unknown' && (
+                                                <span className="text-xs px-2 py-1 rounded-full font-medium" title={call.satisfactionReason || ''}>
+                                                    {call.satisfaction === 'positive' ? '🙂' : call.satisfaction === 'negative' ? '🙁' : '😐'}
+                                                </span>
+                                            )}
                                             <span className={`text-xs px-3 py-1.5 rounded-full font-medium ${call.status === 'completed'
                                                 ? 'bg-green-950 text-green-400'
                                                 : call.status === 'active'
@@ -389,10 +431,28 @@ export default function BotDashboard() {
                                             </p>
                                         </div>
                                     </div>
-                                    <span className={`text-xs px-3 py-1.5 rounded-full font-medium ${lead.qualified ? 'bg-green-950 text-green-400' : 'bg-gray-800 text-gray-400'
-                                        }`}>
-                                        {lead.qualified ? '✅ Qualified' : 'Unqualified'}
-                                    </span>
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-xs px-3 py-1.5 rounded-full font-medium bg-indigo-950 text-indigo-300">
+                                            {lead.status || 'Not Contacted'}
+                                        </span>
+                                        <span
+                                            className={`text-xs px-2.5 py-1 rounded-full font-medium ${lead.zohoSyncStatus === 'synced' ? 'bg-green-950 text-green-400'
+                                                : lead.zohoSyncStatus === 'failed' ? 'bg-red-950 text-red-400'
+                                                    : lead.zohoSyncStatus === 'skipped' ? 'bg-gray-800 text-gray-400'
+                                                        : 'bg-yellow-950 text-yellow-400'
+                                                }`}
+                                            title={lead.zohoSyncError || ''}
+                                        >
+                                            {lead.zohoSyncStatus === 'synced' ? '✅ Synced to Zoho'
+                                                : lead.zohoSyncStatus === 'failed' ? '⚠️ Zoho sync failed'
+                                                    : lead.zohoSyncStatus === 'skipped' ? '— Not synced'
+                                                        : '⏳ Syncing...'}
+                                        </span>
+                                        <span className={`text-xs px-3 py-1.5 rounded-full font-medium ${lead.qualified ? 'bg-green-950 text-green-400' : 'bg-gray-800 text-gray-400'
+                                            }`}>
+                                            {lead.qualified ? '✅ Qualified' : 'Unqualified'}
+                                        </span>
+                                    </div>
                                 </div>
                             ))}
                         </div>

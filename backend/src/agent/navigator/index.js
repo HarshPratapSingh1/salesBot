@@ -48,6 +48,10 @@ export class Navigator {
     }
 
     async login(url, loginSteps, email, password) {
+        if (!this.page) {
+            console.log('⚠️ Navigator.login skipped — page already closed');
+            return;
+        }
         try {
             await this.page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
             await this.page.fill(loginSteps.emailSelector, email);
@@ -62,6 +66,10 @@ export class Navigator {
     }
 
     async executeAction(toolName, toolArgs) {
+        if (!this.page) {
+            console.log(`⚠️ executeAction(${toolName}) skipped — page already closed`);
+            return;
+        }
         try {
             switch (toolName) {
                 case 'navigate_to':

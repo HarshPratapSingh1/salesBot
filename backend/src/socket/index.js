@@ -8,6 +8,36 @@ import { v4 as uuidv4 } from 'uuid';
 const orchestrators = new Map();
 const screenshotIntervals = new Map();
 
+const STALE_CALL_TIMEOUT_MS = 20 * 60 * 1000; // 20 minutes
+
+/**
+ * Safety-net sweep for calls that never got cleaned up via the normal
+ * 'end-demo' or 'disconnect' paths (e.g. server crash/restart, a socket
+ * disconnect event that never fires, laptop sleep, etc.). Runs on an
+ * interval and marks any Call still 'active' well past a normal demo
+ * length as 'failed', with duration computed from createdAt.
+ */
+function startStaleCallSweep() {
+    setInterval(async () => {
+        try {
+            const cutoff = new Date(Date.now() - STALE_CALL_TIMEOUT_MS);
+            const staleCalls = await Call.find({ status: 'active', createdAt: { $lt: cutoff } });
+
+            for (const call of staleCalls) {
+                // Only touch calls with no in-memory orchestrator — if one exists,
+                // it's still genuinely active and being tracked normally.
+                if (orchestrators.has(call._id.toString())) continue;
+
+                const duration = Math.floor((Date.now() - call.createdAt.getTime()) / 1000);
+                await Call.findByIdAndUpdate(call._id, { status: 'failed', duration });
+                console.log(`🧹 Swept stale call ${call._id} — marked failed (no activity for 20+ min)`);
+            }
+        } catch (err) {
+            console.log('❌ Stale call sweep error:', err.message);
+        }
+    }, 5 * 60 * 1000); // check every 5 minutes
+}
+
 export function initSocket(server) {
     const allowedOrigins = process.env.ALLOWED_ORIGINS
         ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
@@ -69,6 +99,9 @@ export function initSocket(server) {
                 const orchestrator = new CallOrchestrator(productId, callId, io);
                 orchestrators.set(callId, orchestrator);
                 await orchestrator.start();
+
+                // Track this call on the socket so we can clean up properly on disconnect
+                socket.activeCallId = callId;
 
                 // Start screenshot streaming every 1 second
                 const screenshotInterval = setInterval(async () => {
@@ -133,6 +166,7 @@ export function initSocket(server) {
                     orchestrators.delete(callId);
                 }
 
+                socket.activeCallId = null;
                 socket.emit('demo-ended', { callId });
                 console.log(`🏁 Demo ended: ${callId}`);
             } catch (err) {
@@ -140,11 +174,35 @@ export function initSocket(server) {
             }
         });
 
-        // Handle disconnect
+        // Handle disconnect — visitor closed the tab / lost connection mid-call
+        // without a proper 'end-demo' event. Without this, the Call stays
+        // status: 'active' forever with duration 0m 0s.
         socket.on('disconnect', async () => {
             console.log(`🔌 Socket disconnected: ${socket.id}`);
+
+            const callId = socket.activeCallId;
+            if (!callId) return; // no active call on this socket, nothing to clean up
+
+            try {
+                const interval = screenshotIntervals.get(callId);
+                if (interval) {
+                    clearInterval(interval);
+                    screenshotIntervals.delete(callId);
+                }
+
+                const orchestrator = orchestrators.get(callId);
+                if (orchestrator) {
+                    await orchestrator.end('', '', 'failed');
+                    orchestrators.delete(callId);
+                    console.log(`⚠️ Call ${callId} marked failed (visitor disconnected without ending demo)`);
+                }
+            } catch (err) {
+                console.log('❌ Error cleaning up disconnected call:', err.message);
+            }
         });
     });
+
+    startStaleCallSweep();
 
     return io;
 }
